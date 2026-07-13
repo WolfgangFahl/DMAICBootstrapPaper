@@ -6,7 +6,24 @@ on:
   workflow_dispatch:
 
 jobs:
+  validate-cff:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v7
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Validate CITATION.cff
+      run: |
+        pip install cffconvert
+        python scripts/validate_cff
+
   build-latex:
+    needs: validate-cff
     runs-on: ubuntu-latest
     container:
       image: texlive/texlive:latest
