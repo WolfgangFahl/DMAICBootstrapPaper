@@ -21,10 +21,13 @@ Each set of intended actions needs to be explained in the format:
 
 **CRITICAL: NEVER leak credentials, passwords, hashes, internal hostnames, IPs, or any infrastructure details to public platforms (GitHub, Discourse, etc.). Firing offense.**
 
-## Scientific Paper (CEUR-WS)
+## Scientific Paper
 
-This project is a scientific paper targeting CEUR Workshop Proceedings
-(CEUR-WS). AI support is strictly limited to:
+This project is a scientific paper. The publication outlet is **not yet
+decided** (see issue #7 "Be publisher-independent until the outlet is
+decided"); Zenodo is the only committed publication channel so far, and the
+`ceurart` class is used as the working layout only. AI support is strictly
+limited to:
 
 - **Corrections**: spelling and grammar errors
 - **Tool support**: creating tables, graphics, and similar formatting/build tasks
@@ -50,9 +53,10 @@ may explicitly relax the content policy — but only via the dedicated issue
 - The gate and its resolution are experiment data and will be reported in
   the paper.
 
-The CEUR-WS "Declaration on Generative AI" (see
-<https://ceur-ws.org/GenAI/Policy.html>) must be finalized in `main.tex`
-before submission, consistent with the policy state at submission time.
+A "Declaration on Generative AI" must be finalized in `main.tex` before
+submission, consistent with the policy state at submission time and with
+the requirements of whatever outlet is eventually chosen (e.g. CEUR-WS's
+<https://ceur-ws.org/GenAI/Policy.html> if that outlet is selected).
 
 ## GitHub Automation
 

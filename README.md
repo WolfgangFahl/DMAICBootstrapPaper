@@ -1,4 +1,4 @@
-# DMAIC Bootstrap — CEUR-WS Paper (skeleton)
+# DMAIC Bootstrap — Paper (skeleton)
 
 Paper repository for the **DMAIC Bootstrap** experiment: applying the Six
 Sigma DMAIC cycle to LLM agent incidents recorded in a Semantic MediaWiki
@@ -28,8 +28,11 @@ of truth for citation metadata (`scripts/validate_cff`,
 
 ## Template
 
-Uses the official CEUR-WS `ceurart` 1-column class. Do not use the
-`twocolumn` / `hf` document-class options for CEUR-WS submissions.
+The publication outlet is **not yet decided**
+([issue #7](https://github.com/WolfgangFahl/DMAICBootstrapPaper/issues/7));
+Zenodo is the only committed publication channel so far. The `ceurart`
+1-column class is used as the working layout only. Do not use the
+`twocolumn` / `hf` document-class options with this class.
 
 ## AI content policy
 
