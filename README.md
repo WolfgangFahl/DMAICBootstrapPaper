@@ -36,8 +36,12 @@ Zenodo is the only committed publication channel so far. The `ceurart`
 
 ## AI content policy
 
-See [AGENTS.md](AGENTS.md): AI assistance is limited to spelling/grammar and
-formatting/build tooling. AI is **not** used to generate scientific content,
-arguments or prose — until the issue-gated policy change
-("Allow scientific content") is decided by the human authors. The policy
-gate is itself part of the reported experiment.
+See [AGENTS.md](AGENTS.md): the repository started with AI assistance
+limited to spelling/grammar and formatting/build tooling. On 2026-07-13 the
+human authors opened the issue gate
+([#3 "Allow scientific content"](https://github.com/WolfgangFahl/DMAICBootstrapPaper/issues/3)):
+the AI agent may author scientific content grounded strictly in the
+experiment data, with every claim citing its source, under human review;
+the human authors retain sole responsibility for all scientific claims at
+submission time. The policy gate and its resolution are themselves part of
+the reported experiment.

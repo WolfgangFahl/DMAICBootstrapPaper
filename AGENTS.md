@@ -26,15 +26,31 @@ Each set of intended actions needs to be explained in the format:
 This project is a scientific paper. The publication outlet is **not yet
 decided** (see issue #7 "Be publisher-independent until the outlet is
 decided"); Zenodo is the only committed publication channel so far, and the
-`ceurart` class is used as the working layout only. AI support is strictly
-limited to:
+`ceurart` class is used as the working layout only.
 
-- **Corrections**: spelling and grammar errors
-- **Tool support**: creating tables, graphics, and similar formatting/build tasks
+Initial policy (in force until 2026-07-13, kept for the record): AI support
+strictly limited to spelling/grammar corrections and formatting/build
+tooling; AI must NOT generate, rewrite, or contribute original scientific
+content, arguments, or prose.
 
-AI must NOT generate, rewrite, or contribute original scientific content,
-arguments, or prose. All scientific claims, interpretations and conclusions
-are the sole responsibility of the authors.
+### Policy amendment (2026-07-13, gate opened)
+
+Issue #3 "Allow scientific content (policy gate)" was closed as approved by
+the human author Wolfgang Fahl on 2026-07-13. The policy is amended as
+follows:
+
+- The AI agent MAY author scientific content for this paper (abstract,
+  introduction, method, experiment description, statistics, analysis,
+  related work) — grounded strictly in the experiment data: round logs,
+  DMAIC corpus statistics via SMW queries, the public experiment pages, and
+  the bibliography. No unsourced claims — every claim cites its source.
+- All agent-authored content enters via commits and is subject to human
+  review in GitHub/Overleaf; the human authors retain sole responsibility
+  for all scientific claims, interpretations and conclusions at submission
+  time.
+- The Declaration on Generative AI in `main.tex` must disclose the agent's
+  authorship role per the eventually chosen outlet's policy.
+- This amendment and its timing are themselves experiment data.
 
 ### Issue-gated policy change (experiment governance)
 
