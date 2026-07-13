@@ -10,8 +10,8 @@ abstract: >-
   Paper repository for the DMAIC Bootstrap experiment: applying the Six Sigma
   DMAIC cycle to LLM agent incidents recorded in a Semantic MediaWiki
   knowledge graph, and bootstrapping the improvement system by its own
-  method. Currently build infrastructure and experiment round data only —
-  no scientific content yet; content authoring is issue-gated per AGENTS.md.
+  method. Content authoring is issue-gated per AGENTS.md; the
+  scientific-content gate was opened by the human authors on 2026-07-13.
 keywords:
   - "DMAIC"
   - "Six Sigma"
