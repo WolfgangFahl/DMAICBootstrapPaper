@@ -1,0 +1,354 @@
+#!/bin/bash
+# LaTeX PDF Generation Script
+# Usage: scripts/tex2pdf [--build|--check | --install | --clean | --fonts | -h|--help]
+
+set -o pipefail  # Return value of a pipeline is the value of the last (failed) command
+
+# GLOBAL VARIABLES
+
+# name of the main tex file
+MAIN_FILE="main"
+# log file for pdflatex/bibtex output
+LOG_FILE="${MAIN_FILE}.build.log"
+# directory where the script runs
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# list of required fonts to check (optional for pdfLaTeX, but kept for consistency)
+REQUIRED_FONTS=("DejaVu Sans" "DejaVu Serif")
+
+# COUNTER
+issues=0
+
+# Logic to source bash_messages
+if [ -f "$SCRIPT_DIR/bash_messages" ]; then
+    source "$SCRIPT_DIR/bash_messages"
+else
+  echo "bash_messages missing"
+  exit 1
+fi
+
+# show the usage of the script
+usage() {
+  cat <<'EOF'
+Usage: scripts/tex2pdf [--build|--check|--install|--clean|--fonts|--font|--github|-h|--help]
+
+Options:
+  --build            Build the PDF (default when no args are given)
+  --check            Check required tools (pdflatex, bibtex, inkscape) and fonts
+  --install          Install TeX dependencies, Inkscape, and base fonts
+  --fonts, --font    Install texlive-fonts-extra (additional fonts)
+  --github           GitHub Actions mode - check timestamps, build if needed, and git add if changed.
+  --clean            Remove build artifacts
+  -v, --version      Show version of texlive
+  -h, --help         Show this help
+EOF
+}
+
+# cleans aux and log files
+clean_artifacts() {
+    warn "Cleaning build artifacts..."
+    rm -f *.aux *.bbl *.blg *.log *.out *.toc *.lof *.lot *.fls *.fdb_latexmk *.build.log
+}
+
+# Checks for required fonts (warn-only for pdfLaTeX)
+check_required_fonts() {
+    local missing_font=0
+    action "Verifying Font Configuration..."
+    for font in "${REQUIRED_FONTS[@]}"; do
+        if fc-list | grep -qi "$font"; then
+            success "Font found: $font"
+        else
+            warn "Font not found: $font (optional for pdfLaTeX)"
+            missing_font=1
+        fi
+    done
+
+    if [ $missing_font -eq 1 ]; then
+        warn "Some fonts are missing. Run '--fonts' to install if needed."
+        return 1
+    fi
+    return 0
+}
+
+# Checks for binaries and required fonts
+check_dependencies() {
+    local missing=0
+    action "Checking system requirements..."
+
+    # Check binaries
+    for tool in pdflatex bibtex inkscape fc-list; do
+        if command -v "$tool" &> /dev/null; then
+            success "Tool found: $tool"
+        else
+            error "Missing tool: $tool" 0
+            missing=1
+        fi
+    done
+
+    # Check Fonts (warn-only)
+    check_required_fonts || true
+
+    if [ $missing -eq 1 ]; then
+        echo ""
+        warn "Core dependencies missing. Run 'scripts/tex2pdf --install' to fix."
+        return 1
+    fi
+    success "All core dependencies met."
+    return 0
+}
+
+# Installs texlive and base fonts
+install_dependencies() {
+    action "Installing dependencies..."
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS installation
+        if command -v port &> /dev/null; then
+            action "Detected MacPorts. Installing TeXLive, Inkscape and Fonts..."
+            sudo port -N install texlive-latex texlive-latex-extra inkscape dejavu-fonts fontconfig
+
+            # --- MACPORTS FONT CONFIGURATION ---
+            if [ -d "/opt/local/share/fonts" ]; then
+                action "Configuring ~/.config/fontconfig/fonts.conf..."
+                mkdir -p ~/.config/fontconfig
+                cat <<EOF > ~/.config/fontconfig/fonts.conf
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+    <!-- Explicitly add MacPorts font directory -->
+    <dir>/opt/local/share/fonts</dir>
+</fontconfig>
+EOF
+            fi
+
+            action "Rebuilding font cache (this may take a moment)..."
+            if [ -x "/opt/local/bin/fc-cache" ]; then
+                /opt/local/bin/fc-cache -f -v
+            else
+                fc-cache -f -v
+            fi
+        elif command -v brew &> /dev/null; then
+            action "Detected Homebrew..."
+            brew install --cask mactex-no-gui font-dejavu inkscape
+            brew install texlive
+        else
+            error "No package manager found (MacPorts/Homebrew). Install manually."
+        fi
+    else
+        # Linux (Debian/Ubuntu)
+        action "Detected Linux (apt)..."
+        sudo apt-get update
+        sudo apt-get install -y texlive-latex texlive-latex-extra fonts-dejavu fonts-dejavu-extra fontconfig inkscape
+        fc-cache -f -v
+    fi
+
+    success "Installation complete. Run 'scripts/tex2pdf --check' to verify."
+}
+
+# Installs extra TeX fonts and utilities
+install_fonts_extra() {
+    action "Installing TeX Live extra fonts (texlive-fonts-extra)... and fontutils"
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        if command -v port &> /dev/null; then
+            sudo port -N install texlive-fonts-extra texlive-fontutils
+            # tlmgr?
+        elif command -v brew &> /dev/null; then
+            # macOS MacTeX already bundles fonts; ensure tlmgr is updated
+            action "Homebrew detected. texlive-fonts-extra is bundled with MacTeX."
+            brew install --cask mactex-no-gui
+            sudo tlmgr update --self --all
+        else
+            error "No package manager found (MacPorts/Homebrew). Install manually."
+            return 1
+        fi
+    else
+        # Linux (Debian/Ubuntu)
+        sudo apt-get update
+        sudo apt-get install -y texlive-fonts-extra
+        # albatross?
+    fi
+
+    fc-cache -f -v || true
+    success "Extra fonts installed."
+}
+
+# Run pdflatex, logging output
+# $1: pass
+run_pdflatex() {
+    local pass="$1"
+    pdflatex -shell-escape -interaction=nonstopmode "${MAIN_FILE}.tex" >> "${LOG_FILE}${pass}" 2>&1
+    return $?
+}
+
+# Run bibtex, logging output
+run_bibtex() {
+    bibtex "${MAIN_FILE}" >> "$LOG_FILE" 2>&1
+    return $?
+}
+
+# grep for the given search expression in the given log text
+# $1: log text
+# $2: the search text
+# $3: the title of this search
+#
+# return the number of items found
+grep_log() {
+  local log="$1"
+  local search="$2"
+  local title="$3"
+  echo "$log" | grep "$search" 
+  local n
+  n=$(echo "$log" | grep -c "$search" 2>/dev/null || true)
+  [ "$n" -gt 0 ] && { warn "$n $title"; issues=$((issues + 1)); }
+}
+
+
+# Check the final pdflatex pass in the build log for issues
+# $1: log_file
+check_build_log() {
+  local log_file="$1"
+  if [ ! -f "$log_file" ]; then
+      return 0
+  fi
+
+  local final_pass_line
+  final_pass_line=$(grep -n "This is pdfTeX" "$log_file" | tail -1 | cut -d: -f1)
+  if [ -z "$final_pass_line" ]; then
+      return 0
+  fi
+
+  local final_pass
+  final_pass=$(sed -n "${final_pass_line},\$p" "$log_file")
+
+  grep_log "$final_pass" "LaTeX Warning: Citation.*undefined" "undefined citation(s)"
+  grep_log "$final_pass" "LaTeX Warning: Reference.*undefined" "undefined reference(s)"
+  grep_log "$final_pass" "Package svg Error" "SVG conversion error(s)"
+  grep_log "$final_pass" "^!" "hard error(s):"
+  return $issues
+}
+
+# the core functionality
+build_pdf() {
+    if [ ! -f "${MAIN_FILE}.tex" ]; then
+        error "${MAIN_FILE}.tex not found."
+    fi
+
+    # Clean before building
+    clean_artifacts
+    > "$LOG_FILE"  # Initialize empty log file
+
+    action "Building ${MAIN_FILE}..."
+
+    # 1. First Pass
+    action ">> pdfLaTeX Pass 1..."
+    run_pdflatex 1 || true
+
+    # 2. Bibtex
+    if ls *.bib 1>/dev/null 2>&1; then
+        action ">> BibTeX..."
+        run_bibtex || true
+    fi
+
+    # 3. Second Pass
+    action ">> pdfLaTeX Pass 2..."
+    run_pdflatex 2 || true
+
+    # 4. Final Pass
+    action ">> pdfLaTeX Pass 3 (Final)..."
+    run_pdflatex 3 || true
+    # log file is the one from pass 3
+    local log_file=${LOG_FILE}3
+    if [ -f "${MAIN_FILE}.pdf" ]; then
+        check_build_log $log_file
+        if [ $issues -gt 0 ]; then
+            warn "Build completed with $issues issue(s) — see $log_file"
+        else
+            success "Build successful: ${MAIN_FILE}.pdf"
+        fi
+    else
+        error "Build failed. Check $log_file for details." 0
+        check_build_log
+        return 1
+    fi
+}
+
+# github action
+# rebuild and check in
+github_action() {
+    OUTPUT_PDF="${MAIN_FILE}.pdf"
+    action "GitHub action: Building PDF..."
+
+    # Fail fast if required tools (pdflatex, bibtex, inkscape, fc-list) missing
+    if ! check_dependencies; then
+        error "Dependency check failed — aborting CI build" 0
+        return 1
+    fi
+
+    # Always build in CI (timestamps don't work in Git)
+    if build_pdf; then
+        if [ ! -f "$OUTPUT_PDF" ]; then
+            error "Build claimed success but $OUTPUT_PDF not found"
+            return 1
+        fi
+
+        success "Build successful, checking for changes..."
+        git add "$OUTPUT_PDF"
+
+        if git diff --cached --quiet "$OUTPUT_PDF"; then
+            success "PDF unchanged, nothing to commit."
+        else
+            success "PDF changed, committing..."
+            git commit -m "build: auto-update PDF [skip ci]"
+        fi
+    else
+        error "Build failed"
+        return 1
+    fi
+}
+
+# Command Line argument handling
+
+# if no arguments then try building the pdf file
+if [ $# -eq 0 ]; then
+    build_pdf
+    exit 0
+fi
+
+# if arguments are available
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --build)
+           build_pdf
+           ;;
+        --check)
+            check_dependencies
+            exit $?
+            ;;
+        --install)
+            install_dependencies
+            exit $?
+            ;;
+        --fonts|--font)
+            install_fonts_extra
+            exit $?
+            ;;
+        --github)
+          github_action
+          ;;
+        --clean)
+            clean_artifacts
+            exit 0
+            ;;
+        -h|--help)
+            usage
+            ;;
+        -v|--version)
+           tlmgr --version
+           ;;
+        *)
+            error "Unknown argument: $1"
+            ;;
+    esac
+    shift
+done

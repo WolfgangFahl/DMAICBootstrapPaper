@@ -1,0 +1,84 @@
+% DMAIC Bootstrap — CEUR-WS submission (skeleton)
+% Open source at https://github.com/WolfgangFahl/DMAICBootstrapPaper
+%
+% CEUR-WS 1-column style (ceurart). Do NOT use the twocolumn / hf options
+% for papers submitted to CEUR-WS.
+%
+% CONTENT POLICY (see AGENTS.md):
+%   This repository starts with NO scientific content. AI assistance is
+%   limited to spelling/grammar and formatting/build tooling until the
+%   issue-gated policy change ("Allow scientific content") is decided by
+%   the human authors. All sections below are intentionally left EMPTY.
+
+\documentclass[
+% twocolumn, % NOT allowed for CEUR-WS
+% hf,        % NOT allowed for CEUR-WS
+]{ceurart}
+
+\sloppy
+
+% Minted/listings support (optional)
+\usepackage{listings}
+\lstset{breaklines=true}
+
+\begin{document}
+
+%% Rights management information (CC-BY is the CEUR-WS default)
+\copyrightyear{2026}
+\copyrightclause{Copyright for this paper by its authors.
+  Use permitted under Creative Commons License Attribution 4.0
+  International (CC BY 4.0).}
+
+%% Conference information
+% TODO: set the target venue once decided.
+\conference{TODO: target venue}
+
+%% Title (working title, from the public experiment page
+%% https://cr.bitplan.com/index.php/DMAIC_Bootstrap)
+\title{DMAIC Bootstrap}
+
+%% Authors and affiliations
+% TODO: add co-authors as separate \author blocks.
+\author[1]{Wolfgang Fahl}[%
+orcid=0000-0002-0821-6995,
+email=wf@bitplan.com,
+]
+\cormark[1]
+\address[1]{BITPlan GmbH, Willich, Germany}
+
+\cortext[1]{Corresponding author.}
+
+%% Abstract
+\begin{abstract}
+  % Intentionally empty — to be written per the content policy in AGENTS.md.
+  TODO
+\end{abstract}
+
+%% Keywords (working metadata naming the subject, not scientific content)
+\begin{keywords}
+  DMAIC \sep
+  LLM Agents \sep
+  Semantic MediaWiki \sep
+  Knowledge Graph
+\end{keywords}
+
+\maketitle
+
+\section{Introduction}\label{sec:introduction}
+% Intentionally empty — see AGENTS.md content policy.
+
+%% Declaration on Generative AI (required by CEUR-WS, see
+%% https://ceur-ws.org/GenAI/Policy.html). Finalize per the AGENTS.md
+%% governance in this repository before submission. Note that the AI
+%% content policy of this repository is itself issue-gated and part of
+%% the reported experiment.
+\section*{Declaration on Generative AI}
+% TODO: finalize per the resolution of the "Allow scientific content" issue.
+
+%% Bibliography
+% keep the seeded predecessor reference in the bibliography until it is
+% cited from authored text
+\nocite{fahl2026sixagents}
+\bibliography{dmaicbootstrap}
+
+\end{document}

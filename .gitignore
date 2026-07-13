@@ -1,0 +1,21 @@
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.bbl
+*.blg
+*.xdv
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+missfont.log
+*.log*
+_minted
+svg-inkscape
+
+# OS files
+.DS_Store
+Thumbs.db

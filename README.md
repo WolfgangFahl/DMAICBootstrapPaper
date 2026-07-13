@@ -1,0 +1,40 @@
+# DMAIC Bootstrap — CEUR-WS Paper (skeleton)
+
+Paper repository for the **DMAIC Bootstrap** experiment: applying the Six
+Sigma DMAIC cycle to LLM agent incidents recorded in a Semantic MediaWiki
+knowledge graph — and bootstrapping the improvement system by its own method.
+Follow-up to
+[How We Created 6 AI Agents in No Time](https://wiki.bitplan.com/index.php/How_We_Created_6_AI_Agents_in_No_Time).
+
+This repository currently contains only the build infrastructure and an
+**empty** paper skeleton — **no scientific content**. Scientific content is
+issue-gated: see the AI content policy below.
+
+- Experiment page: [cr:DMAIC Bootstrap](https://cr.bitplan.com/index.php/DMAIC_Bootstrap)
+- Plan: [cr:DMAIC Bootstrap/Plan](https://cr.bitplan.com/index.php/DMAIC_Bootstrap/Plan)
+- Context model: [AgentTeamContext](https://contexts.bitplan.com/index.php/AgentTeamContext)
+- [View PDF in browser](https://github.com/WolfgangFahl/DMAICBootstrapPaper/raw/main/main.pdf) (built by CI)
+
+## Build
+
+```bash
+scripts/tex2pdf --build
+```
+
+The PDF is rebuilt automatically on every push to `main` via GitHub
+Actions (`.github/workflows/build.yml`). `CITATION.cff` is the single source
+of truth for citation metadata (`scripts/validate_cff`,
+`scripts/cff2zenodo`).
+
+## Template
+
+Uses the official CEUR-WS `ceurart` 1-column class. Do not use the
+`twocolumn` / `hf` document-class options for CEUR-WS submissions.
+
+## AI content policy
+
+See [AGENTS.md](AGENTS.md): AI assistance is limited to spelling/grammar and
+formatting/build tooling. AI is **not** used to generate scientific content,
+arguments or prose — until the issue-gated policy change
+("Allow scientific content") is decided by the human authors. The policy
+gate is itself part of the reported experiment.

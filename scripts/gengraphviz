@@ -1,0 +1,177 @@
+#!/bin/bash
+# Graphviz SVG Generation Script
+# Generates SVG files from .dot sources in the images/ directory.
+# Usage: scripts/gengraphviz [--build|--check|--install|--clean|-h|--help]
+
+set -o pipefail
+
+# GLOBAL VARIABLES
+
+# directory where the script runs
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# project root (parent of scripts/)
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# directory containing the .dot sources
+IMAGES_DIR="$PROJECT_DIR/images"
+
+# Logic to source bash_messages
+if [ -f "$SCRIPT_DIR/bash_messages" ]; then
+    source "$SCRIPT_DIR/bash_messages"
+else
+  echo "bash_messages missing"
+  exit 1
+fi
+
+# show the usage of the script
+usage() {
+  cat <<'EOF'
+Usage: scripts/gengraphviz [--build|--check|--install|--clean|-h|--help]
+
+Options:
+  --build            Generate SVGs from .dot files (default when no args are given)
+  --check            Check required tools (dot)
+  --install          Install Graphviz
+  --clean            Remove generated SVGs (only those with a matching .dot source)
+  -h, --help         Show this help
+EOF
+}
+
+# Check for required binaries
+check_dependencies() {
+    local missing=0
+    action "Checking system requirements..."
+
+    for tool in dot; do
+        if command -v "$tool" &> /dev/null; then
+            success "Tool found: $tool ($($tool -V 2>&1 | head -1))"
+        else
+            error "Missing tool: $tool" 0
+            missing=1
+        fi
+    done
+
+    if [ $missing -eq 1 ]; then
+        echo ""
+        warn "Dependencies missing. Run 'scripts/gengraphviz --install' to fix."
+        return 1
+    fi
+    success "All dependencies met."
+    return 0
+}
+
+# Install Graphviz
+install_dependencies() {
+    action "Installing Graphviz..."
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        if command -v port &> /dev/null; then
+            sudo port -N install graphviz
+        elif command -v brew &> /dev/null; then
+            brew install graphviz
+        else
+            error "No package manager found (MacPorts/Homebrew). Install manually."
+        fi
+    else
+        sudo apt-get update
+        sudo apt-get install -y graphviz
+    fi
+
+    success "Installation complete. Run 'scripts/gengraphviz --check' to verify."
+}
+
+# Remove generated SVGs that have a matching .dot source
+clean_artifacts() {
+    warn "Cleaning generated SVGs in $IMAGES_DIR..."
+    if [ ! -d "$IMAGES_DIR" ]; then
+        warn "No images directory found: $IMAGES_DIR"
+        return 0
+    fi
+    local count=0
+    for dot_file in "$IMAGES_DIR"/*.dot; do
+        [ -f "$dot_file" ] || continue
+        local svg_file="${dot_file%.dot}.svg"
+        if [ -f "$svg_file" ]; then
+            rm -f "$svg_file"
+            count=$((count + 1))
+        fi
+    done
+    success "Removed $count generated SVG(s)."
+}
+
+# Generate SVG from a single .dot file
+# $1: path to .dot file
+gen_one() {
+    local dot_file="$1"
+    local svg_file="${dot_file%.dot}.svg"
+    local name
+    name=$(basename "$dot_file")
+
+    action ">> dot $name -> $(basename "$svg_file")"
+    if dot -Tsvg "$dot_file" -o "$svg_file"; then
+        success "Generated: $svg_file"
+        return 0
+    else
+        error "Failed to generate $svg_file" 0
+        return 1
+    fi
+}
+
+# Generate SVGs for all .dot files in IMAGES_DIR
+build_svgs() {
+    if [ ! -d "$IMAGES_DIR" ]; then
+        error "Images directory not found: $IMAGES_DIR"
+    fi
+
+    local dot_files=("$IMAGES_DIR"/*.dot)
+    if [ ! -f "${dot_files[0]}" ]; then
+        warn "No .dot files found in $IMAGES_DIR"
+        return 0
+    fi
+
+    action "Generating SVGs from .dot files in $IMAGES_DIR..."
+    local failed=0
+    for dot_file in "${dot_files[@]}"; do
+        gen_one "$dot_file" || failed=$((failed + 1))
+    done
+
+    if [ $failed -gt 0 ]; then
+        error "$failed file(s) failed to generate" 0
+        return 1
+    fi
+    success "All SVGs generated successfully."
+}
+
+# Command Line argument handling
+
+if [ $# -eq 0 ]; then
+    build_svgs
+    exit $?
+fi
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --build)
+            build_svgs
+            ;;
+        --check)
+            check_dependencies
+            exit $?
+            ;;
+        --install)
+            install_dependencies
+            exit $?
+            ;;
+        --clean)
+            clean_artifacts
+            exit 0
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            error "Unknown argument: $1"
+            ;;
+    esac
+    shift
+done

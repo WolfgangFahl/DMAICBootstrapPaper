@@ -1,0 +1,180 @@
+#!/usr/bin/env python3
+"""
+Upload the built PDF to Zenodo, using CITATION.cff as the metadata source.
+
+Workflow:
+  1. Build the PDF via scripts/tex2pdf
+  2. Convert CITATION.cff → Zenodo JSON via cffconvert
+  3. Upload main.pdf using zenodo_client
+
+Requirements:
+  pip install cffconvert zenodo_client pyyaml
+
+Environment:
+  ZENODO_API_TOKEN    — your Zenodo API token (required)
+  ZENODO_SANDBOX      — set to "1" for sandbox testing (default: production)
+
+Usage:
+  scripts/cff2zenodo [--sandbox] [--key KEY]
+"""
+
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+CFF_PATH = REPO_ROOT / "CITATION.cff"
+PDF_PATH = REPO_ROOT / "main.pdf"
+ZENODO_JSON_PATH = REPO_ROOT / ".zenodo.json"
+
+
+def check_dependency(pkg_name: str, import_name: str | None = None) -> None:
+    import_name = import_name or pkg_name
+    try:
+        __import__(import_name)
+    except ImportError:
+        print(f"ERROR: '{pkg_name}' is required. Install with: pip install {pkg_name}")
+        sys.exit(1)
+
+
+def build_pdf() -> bool:
+    """Run scripts/tex2pdf to build main.pdf."""
+    tex2pdf = REPO_ROOT / "scripts" / "tex2pdf"
+    if not tex2pdf.exists():
+        print("ERROR: scripts/tex2pdf not found")
+        return False
+
+    print("Building PDF ...")
+    result = subprocess.run(
+        [str(tex2pdf)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print("PDF build failed:")
+        print(result.stderr or result.stdout)
+        return False
+    print("✓ PDF built successfully")
+    return True
+
+
+def convert_cff_to_zenodo() -> dict | None:
+    """Convert CITATION.cff to Zenodo JSON using cffconvert."""
+    if not CFF_PATH.exists():
+        print(f"ERROR: {CFF_PATH} not found")
+        return None
+
+    print("Converting CITATION.cff → Zenodo metadata ...")
+    result = subprocess.run(
+        ["cffconvert", "-f", "zenodo", "-i", str(CFF_PATH)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print("cffconvert failed:")
+        print(result.stderr)
+        return None
+
+    try:
+        metadata = json.loads(result.stdout)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: failed to parse Zenodo JSON: {e}")
+        return None
+
+    # Save .zenodo.json for reference / GitHub integration
+    ZENODO_JSON_PATH.write_text(json.dumps(metadata, indent=2) + "\n")
+    print(f"✓ Zenodo metadata written to {ZENODO_JSON_PATH}")
+    return metadata
+
+
+def zenodo_metadata_from_cff(meta: dict):
+    """Build zenodo_client Metadata from the cffconvert Zenodo JSON output."""
+    from zenodo_client import Creator, Metadata
+
+    creators = []
+    for c in meta.get("creators", []):
+        creators.append(
+            Creator(
+                name=c.get("name", ""),
+                affiliation=c.get("affiliation"),
+                orcid=c.get("orcid"),
+            )
+        )
+
+    return Metadata(
+        title=meta.get("title", ""),
+        upload_type="publication",
+        description=meta.get("description", ""),
+        creators=creators,
+        publication_date=meta.get("publication_date"),
+        keywords=meta.get("keywords", []),
+        license=meta.get("license"),
+        access_right=meta.get("access_right", "open"),
+        communities=meta.get("communities", []),
+    )
+
+
+def upload_to_zenodo(key: str, sandbox: bool) -> bool:
+    """Upload main.pdf to Zenodo using zenodo_client."""
+    from zenodo_client import ensure_zenodo
+
+    meta = convert_cff_to_zenodo()
+    if meta is None:
+        return False
+
+    data = zenodo_metadata_from_cff(meta)
+
+    if not PDF_PATH.exists():
+        print(f"ERROR: {PDF_PATH} not found — run build first")
+        return False
+
+    env = "sandbox" if sandbox else "production"
+    print(f"Uploading {PDF_PATH} to Zenodo ({env}) ...")
+
+    try:
+        res = ensure_zenodo(
+            key=key,
+            data=data,
+            paths=[str(PDF_PATH)],
+            sandbox=sandbox,
+        )
+        deposition_id = res.json().get("id", "unknown")
+        print(f"✓ Uploaded successfully — deposition ID: {deposition_id}")
+        return True
+    except Exception as e:
+        print(f"ERROR: upload failed: {e}")
+        return False
+
+
+def main() -> None:
+    check_dependency("cffconvert")
+    check_dependency("zenodo_client", "zenodo_client")
+
+    sandbox = os.environ.get("ZENODO_SANDBOX", "").strip().lower() in ("1", "true", "yes")
+    key = os.environ.get("ZENODO_KEY", "dual-view-kg-explorer-paper")
+
+    import argparse
+    parser = argparse.ArgumentParser(description="Upload paper PDF to Zenodo using CITATION.cff metadata")
+    parser.add_argument("--sandbox", action="store_true", default=sandbox, help="Use Zenodo sandbox")
+    parser.add_argument("--key", default=key, help="Unique key for deposition caching")
+    parser.add_argument("--no-build", action="store_true", help="Skip PDF build (use existing main.pdf)")
+    args = parser.parse_args()
+
+    if not os.environ.get("ZENODO_API_TOKEN"):
+        print("ERROR: ZENODO_API_TOKEN environment variable not set")
+        print("  Create a token at https://zenodo.org/account/settings/applications/")
+        sys.exit(1)
+
+    if not args.no_build:
+        if not build_pdf():
+            sys.exit(1)
+
+    if not upload_to_zenodo(key=args.key, sandbox=args.sandbox):
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

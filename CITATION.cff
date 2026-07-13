@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this paper or its experiment data, please cite it as below."
+title: "DMAIC Bootstrap"
+authors:
+  - family-names: Fahl
+    given-names: Wolfgang
+    orcid: "https://orcid.org/0000-0002-0821-6995"
+    affiliation: "BITPlan GmbH, Willich, Germany"
+abstract: >-
+  Paper repository for the DMAIC Bootstrap experiment: applying the Six Sigma
+  DMAIC cycle to LLM agent incidents recorded in a Semantic MediaWiki
+  knowledge graph, and bootstrapping the improvement system by its own
+  method. Currently build infrastructure and experiment round data only —
+  no scientific content yet; content authoring is issue-gated per AGENTS.md.
+keywords:
+  - "DMAIC"
+  - "Six Sigma"
+  - "LLM Agents"
+  - "Semantic MediaWiki"
+  - "Knowledge Graph"
+license: Apache-2.0
+url: "https://github.com/WolfgangFahl/DMAICBootstrapPaper"
+repository-code: "https://github.com/WolfgangFahl/DMAICBootstrapPaper"
+date-released: "2026-07-13"
+type: software

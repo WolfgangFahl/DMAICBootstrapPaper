@@ -1,0 +1,7 @@
+#!/bin/bash
+# git push helper - stashes local changes, rebases, pops
+# WF 2026-05-05
+git stash --include-untracked
+git pull --rebase origin main
+git stash pop 2>/dev/null || true
+git push origin main
