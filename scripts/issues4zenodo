@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""
+Generate the issue set as repository content, so that it travels with a
+Zenodo release. Zenodo archives the git tree; GitHub issues live outside it.
+
+Small projects get a single issues.md with one section per issue, bigger ones
+an issues/ folder with one issue#.md per issue.
+
+Requirements:
+  gh (authenticated)
+
+Usage:
+  scripts/issues4zenodo [--threshold N] [--repo OWNER/NAME]
+"""
+
+import argparse
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+ISSUES_MD = REPO_ROOT / "issues.md"
+ISSUES_DIR = REPO_ROOT / "issues"
+
+FIELDS = "number,title,state,milestone,labels,assignees,url,body"
+
+
+def fetch_issues(repo: str | None) -> list[dict]:
+    cmd = ["gh", "issue", "list", "--state", "all", "--limit", "1000", "--json", FIELDS]
+    if repo:
+        cmd += ["--repo", repo]
+    result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(result.stderr or result.stdout)
+        sys.exit(1)
+    issues = json.loads(result.stdout)
+    return sorted(issues, key=lambda issue: issue["number"])
+
+
+def names(items: list[dict], key: str = "name") -> str:
+    return ", ".join(item[key] for item in items) or "-"
+
+
+def metadata(issue: dict) -> str:
+    milestone = issue["milestone"]["title"] if issue["milestone"] else "-"
+    return (
+        f"- state: {issue['state'].lower()}\n"
+        f"- milestone: {milestone}\n"
+        f"- labels: {names(issue['labels'])}\n"
+        f"- assignees: {names(issue['assignees'], 'login')}\n"
+        f"- url: {issue['url']}\n"
+    )
+
+
+def section(issue: dict, level: int) -> str:
+    heading = "#" * level
+    body = (issue["body"] or "").strip()
+    return f"{heading} #{issue['number']} {issue['title']}\n\n{metadata(issue)}\n{body}\n"
+
+
+def write_single_file(issues: list[dict]) -> None:
+    parts = ["# Issues\n"] + [section(issue, 2) for issue in issues]
+    ISSUES_MD.write_text("\n".join(parts))
+    print(f"✓ {len(issues)} issues written to {ISSUES_MD}")
+
+
+def write_folder(issues: list[dict]) -> None:
+    ISSUES_DIR.mkdir(exist_ok=True)
+    for issue in issues:
+        path = ISSUES_DIR / f"issue{issue['number']}.md"
+        path.write_text(section(issue, 1))
+    print(f"✓ {len(issues)} issues written to {ISSUES_DIR}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--threshold", type=int, default=50,
+                        help="above this issue count, write issues/issue#.md instead of issues.md")
+    parser.add_argument("--repo", help="OWNER/NAME, default: the git remote")
+    args = parser.parse_args()
+
+    issues = fetch_issues(args.repo)
+    if len(issues) > args.threshold:
+        write_folder(issues)
+    else:
+        write_single_file(issues)
+
+
+if __name__ == "__main__":
+    main()
