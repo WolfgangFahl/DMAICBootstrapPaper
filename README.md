@@ -26,6 +26,18 @@ Actions (`.github/workflows/build.yml`). `CITATION.cff` is the single source
 of truth for citation metadata (`scripts/validate_cff`,
 `scripts/cff2zenodo`).
 
+## Release
+
+Zenodo archives the git tree, and GitHub issues are not part of it. Regenerate
+`issues.md` from the GitHub API before tagging a release:
+
+```bash
+scripts/issues4zenodo && git add issues.md && git commit -m "update issues.md" && scripts/push
+```
+
+Above 50 issues the script writes an `issues/` folder with one `issue#.md` per
+issue instead (`--threshold`).
+
 ## Template
 
 The publication outlet is **not yet decided**
